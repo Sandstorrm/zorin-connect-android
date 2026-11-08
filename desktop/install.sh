@@ -16,5 +16,8 @@ rm -f /etc/udev/rules.d/99-zorin-uinput.rules
 install -m 0644 "$SRC/70-zorin-uinput.rules" /etc/udev/rules.d/70-zorin-uinput.rules
 udevadm control --reload-rules
 udevadm trigger --name-match=uinput --action=change || true
-apt-get install -y libinput-tools   # optional: gives `libinput debug-events` for checking what GNOME sees
+# optional: gives `libinput debug-events` for checking what GNOME sees
+command -v libinput >/dev/null 2>&1 || apt-get install -y -q libinput-tools || true
+# keep the optional apt update hook current if it is installed
+[ -e /etc/apt/apt.conf.d/99zorin-connect-touchpad ] && "$SRC/install-update-hook.sh"
 echo "done. Restart the daemon: pkill -f zorin-connect@zorinos.com/service/daemon.js"

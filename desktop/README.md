@@ -20,6 +20,15 @@ An empty `p` means every finger is up. The daemon announces support with `rawTou
 `mousepad.patch` is the diff against the stock `mousepad.js` (`mousepad.js.orig`). If upstream changes that
 file so the patch no longer applies, `apply.sh` keeps the original and the app falls back to classic mode.
 
+## One-button update from the phone
+
+    bash desktop/register-run-command.sh        # once, no root: adds the button + ~/.local/bin/zorin-touchpad-update
+
+The phone's *Run command* list then has "Update touchpad support (GitHub)". It fetches only `desktop/` from the
+fork (`ZC_TOUCHPAD_REPO` / `ZC_TOUCHPAD_BRANCH` override it), runs `install.sh` with `sudo -n` (or a graphical
+`pkexec` prompt if sudo needs a password), shows a desktop notification, then restarts the daemon so the phone
+reconnects. Log: `~/.cache/zorin-connect-touchpad/update.log`. It runs repo code as root: only use a repo you control.
+
 ## Test without a phone
 
     python3 desktop/test_frames.py [--cold]
