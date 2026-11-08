@@ -15,6 +15,8 @@ import android.content.res.Configuration
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.GestureDetector
 import android.view.HapticFeedbackConstants
 import android.view.Menu
@@ -33,6 +35,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updateLayoutParams
 import androidx.preference.PreferenceManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.kde.kdeconnect.KdeConnect
 import org.kde.kdeconnect.base.BaseActivity
 import org.kde.kdeconnect.ui.PluginSettingsActivity
@@ -76,6 +79,8 @@ class MousePadActivity :
     private var rawTouchMode: Boolean = false
     private var touchSeq: Long = 0L
     private var touchActive: Boolean = false
+    private val handler = Handler(Looper.getMainLooper())
+    private var driverDialogShown: Boolean = false
 
     private lateinit var mDetector: GestureDetector
     private var mSensorManager: SensorManager? = null
@@ -193,6 +198,8 @@ class MousePadActivity :
 
         invalidateOptionsMenu()
         if (useRawTouch()) sendEmptyTouchFrame()
+        // The computer announces raw touch support shortly after connecting, so look again a moment later.
+        handler.postDelayed({ maybeOfferDriverInstall() }, DriverCheckDelayMs)
 
         super.onResume()
     }
@@ -224,6 +231,7 @@ class MousePadActivity :
     }
 
     override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
         prefs.unregisterOnSharedPreferenceChangeListener(this)
         super.onDestroy()
     }
@@ -238,8 +246,18 @@ class MousePadActivity :
         return true
     }
 
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        val plugin = KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId)
+        menu.findItem(R.id.menu_install_drivers)?.isVisible = plugin != null && !plugin.supportsRawTouch
+        return super.onPrepareOptionsMenu(menu)
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.menu_install_drivers -> {
+                showDriverDialog()
+                true
+            }
             R.id.menu_right_click -> {
                 sendRightClick()
                 true
@@ -702,6 +720,54 @@ class MousePadActivity :
         }
     }
 
+    /**
+     * First time on a computer without the raw touchpad driver: let the user install it
+     * or stay with the classic gestures. Dismissing the dialog asks again next time.
+     */
+    private fun maybeOfferDriverInstall() {
+        if (driverDialogShown || isFinishing || isDestroyed) return
+        if (!rawTouchMode || prefs.getString(getString(R.string.mousepad_input_choice_pref), null) != null) return
+        val plugin = KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId) ?: return
+        if (plugin.supportsRawTouch) return
+        showDriverDialog()
+    }
+
+    private fun showDriverDialog() {
+        driverDialogShown = true
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mousepad_driver_dialog_title)
+            .setMessage(R.string.mousepad_driver_dialog_message)
+            .setPositiveButton(R.string.mousepad_driver_install) { _, _ -> installDrivers() }
+            .setNegativeButton(R.string.mousepad_driver_legacy) { _, _ ->
+                prefs.edit().putString(getString(R.string.mousepad_input_choice_pref), "legacy").apply()
+            }
+            .setOnDismissListener { driverDialogShown = false }
+            .show()
+    }
+
+    /** Opens a terminal on the computer (Ctrl+Alt+T) and types the install command into it. */
+    private fun installDrivers() {
+        val plugin = KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId)
+        if (plugin == null) {
+            finish()
+            return
+        }
+        if (!plugin.isKeyboardEnabled) {
+            Toast.makeText(this, R.string.mousepad_keyboard_input_not_supported, Toast.LENGTH_LONG).show()
+            return
+        }
+        Toast.makeText(this, R.string.mousepad_driver_installing, Toast.LENGTH_LONG).show()
+        plugin.sendCtrlAlt("t")
+        val command = getString(R.string.mousepad_driver_install_command)
+        handler.postDelayed({
+            val p = KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId) ?: return@postDelayed
+            p.sendText(command)
+            handler.postDelayed({
+                KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId)?.sendSelect()
+            }, EnterDelayMs)
+        }, TerminalStartDelayMs)
+    }
+
     /** Raw mode needs a computer that announced support for it; otherwise use the classic gestures. */
     private fun useRawTouch(): Boolean {
         return rawTouchMode &&
@@ -767,6 +833,9 @@ class MousePadActivity :
         private const val MinDistanceToSendScroll = 2.5f // touch gesture scroll
         private const val DirectionLockRatio = 0.5f
         private const val StandardDpi = 240.0f // = hdpi
+        private const val DriverCheckDelayMs = 1000L // time for the computer to announce raw touch support
+        private const val TerminalStartDelayMs = 2500L // time for the terminal to open before typing
+        private const val EnterDelayMs = 400L // let the typed text land before pressing Enter
         private const val MinDraggingDistance2 = 25.0f // distance squared to move after a double tap to start dragging
     }
 }

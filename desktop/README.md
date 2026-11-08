@@ -20,14 +20,23 @@ An empty `p` means every finger is up. The daemon announces support with `rawTou
 `mousepad.patch` is the diff against the stock `mousepad.js` (`mousepad.js.orig`). If upstream changes that
 file so the patch no longer applies, `apply.sh` keeps the original and the app falls back to classic mode.
 
-## One-button update from the phone
+## Installing on a new PC from the phone
 
-    bash desktop/register-run-command.sh        # once, no root: adds the button + ~/.local/bin/zorin-touchpad-update
+Opening *Remote input* on a computer that has not announced `rawTouch` shows a chooser: **Install drivers**
+or **Use legacy input** (remembered; the toolbar menu has *Install touchpad drivers* to run it later).
+"Install drivers" makes the app press Ctrl+Alt+T on the computer and type
 
-The phone's *Run command* list then has "Update touchpad support (GitHub)". It fetches only `desktop/` from the
-fork (`ZC_TOUCHPAD_REPO` / `ZC_TOUCHPAD_BRANCH` override it), runs `install.sh` with `sudo -n` (or a graphical
-`pkexec` prompt if sudo needs a password), shows a desktop notification, then restarts the daemon so the phone
-reconnects. Log: `~/.cache/zorin-connect-touchpad/update.log`. It runs repo code as root: only use a repo you control.
+    bash <(curl -fsSL https://raw.githubusercontent.com/Sandstorrm/zorin-connect-android/master/desktop/update-from-github.sh)
+
+then Enter. The computer must be unlocked, and a sudo password, if asked, is typed in that terminal (on the
+PC keyboard or the phone's keyboard). `update-from-github.sh` downloads only `desktop/` (curl + tar, no git),
+runs `install.sh` as root, adds the *Update touchpad support (GitHub)* button to the phone's Run command list,
+installs `~/.local/bin/zorin-touchpad-update` and restarts the daemon so the phone reconnects.
+`ZC_TOUCHPAD_REPO` (owner/name) and `ZC_TOUCHPAD_BRANCH` override the source. Log:
+`~/.cache/zorin-connect-touchpad/update.log`. It runs repo code as root: only use a repo you control.
+
+The Run command button (`register-run-command.sh`, run by the script above) is for later updates; it uses
+`sudo -n`, or a graphical `pkexec` prompt if sudo needs a password.
 
 ## Test without a phone
 

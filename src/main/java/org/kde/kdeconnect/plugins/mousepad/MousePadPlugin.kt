@@ -199,6 +199,15 @@ class MousePadPlugin : Plugin() {
         device.sendPacket(np)
     }
 
+    /** Ctrl+Alt+<key>, e.g. Ctrl+Alt+T opens a terminal on GNOME. */
+    fun sendCtrlAlt(key: String) {
+        val np = NetworkPacket(PACKET_TYPE_MOUSEPAD_REQUEST)
+        np["ctrl"] = true
+        np["alt"] = true
+        np["key"] = key
+        sendPacket(np)
+    }
+
     fun sendBack() {
         val np = NetworkPacket(PACKET_TYPE_MOUSEPAD_REQUEST)
         np["specialKey"] = KeyListenerView.SpecialKeysMap.get(KeyEvent.KEYCODE_ESCAPE)
