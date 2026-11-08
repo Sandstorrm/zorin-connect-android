@@ -250,6 +250,7 @@ class MousePadActivity :
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         val plugin = KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId)
         menu.findItem(R.id.menu_install_drivers)?.isVisible = plugin != null && !plugin.supportsRawTouch
+        menu.findItem(R.id.menu_remove_drivers)?.isVisible = plugin != null && !isLegacyComputer()
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -257,6 +258,10 @@ class MousePadActivity :
         return when (item.itemId) {
             R.id.menu_install_drivers -> {
                 showDriverDialog()
+                true
+            }
+            R.id.menu_remove_drivers -> {
+                showRemoveDriversDialog()
                 true
             }
             R.id.menu_right_click -> {
@@ -772,6 +777,19 @@ class MousePadActivity :
                 prefs.edit().putString(getString(R.string.mousepad_input_choice_pref), "legacy").apply()
             }
             .setOnDismissListener { driverDialogShown = false }
+            .show()
+    }
+
+    private fun showRemoveDriversDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mousepad_remove_dialog_title)
+            .setMessage(R.string.mousepad_remove_dialog_message)
+            .setPositiveButton(R.string.mousepad_remove_button) { _, _ ->
+                // Ask the install question again the next time the computer lacks the drivers.
+                prefs.edit().remove(getString(R.string.mousepad_input_choice_pref)).apply()
+                typeInTerminalOnComputer(getString(R.string.mousepad_remove_command), R.string.mousepad_driver_installing)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 

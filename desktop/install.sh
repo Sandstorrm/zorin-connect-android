@@ -14,8 +14,17 @@ if command -v apt-get >/dev/null; then
         echo "note: could not update Zorin Connect"
 fi
 
+# Installs a package and remembers it, so uninstall.sh removes only what we added.
+STATE=/var/lib/zorin-connect-touchpad
+install_pkg() {
+    dpkg -s "$1" >/dev/null 2>&1 && return 0
+    apt-get install -y -q "$1" || return 1
+    mkdir -p "$STATE"
+    grep -qx "$1" "$STATE/packages" 2>/dev/null || echo "$1" >> "$STATE/packages"
+}
+
 # The helper needs python-evdev.
-python3 -c 'import evdev' 2>/dev/null || apt-get install -y -q python3-evdev || {
+python3 -c 'import evdev' 2>/dev/null || install_pkg python3-evdev || {
     echo "FAILED: could not install python3-evdev"
     STATUS=1
 }
@@ -30,7 +39,7 @@ install -m 0644 "$SRC/70-zorin-uinput.rules" /etc/udev/rules.d/70-zorin-uinput.r
 udevadm control --reload-rules
 udevadm trigger --name-match=uinput --action=change || true
 # optional: gives `libinput debug-events` for checking what GNOME sees
-command -v libinput >/dev/null 2>&1 || apt-get install -y -q libinput-tools || true
+command -v libinput >/dev/null 2>&1 || install_pkg libinput-tools || true
 # keep the optional apt update hook current if it is installed
 [ -e /etc/apt/apt.conf.d/99zorin-connect-touchpad ] && "$SRC/install-update-hook.sh"
 [ $STATUS -eq 0 ] && echo "done. Restart the daemon: pkill -f zorin-connect@zorinos.com/service/daemon.js"

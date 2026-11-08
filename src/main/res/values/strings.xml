@@ -115,6 +115,11 @@ SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted
     <string name="mousepad_update_opening">Opening the Zorin OS upgrader on the computer…</string>
     <string name="mousepad_driver_legacy">Use legacy input</string>
     <string name="mousepad_driver_menu_title">Touchpad drivers</string>
+    <string name="mousepad_remove_command" translatable="false">bash &lt;(curl -fsSL https://raw.githubusercontent.com/Sandstorrm/zorin-connect-android/master/desktop/uninstall.sh)</string>
+    <string name="mousepad_remove_menu_title">Remove touchpad drivers</string>
+    <string name="mousepad_remove_dialog_title">Remove touchpad drivers?</string>
+    <string name="mousepad_remove_dialog_message">This undoes everything the installer changed on the computer: the patched Zorin Connect plugin, the virtual touchpad helper, the /dev/uinput rule and the update hook. Zorin Connect itself stays installed.\n\nMake sure the computer is unlocked and showing the desktop. You may have to enter your sudo password in the terminal that opens.\n\nRaw touchpad mode stops working until you install the drivers again.</string>
+    <string name="mousepad_remove_button">Remove drivers</string>
     <string name="mousepad_driver_installing">Opening a terminal on the computer…</string>
     <string name="gyro_mouse_enabled_title">Enable gyroscope mouse</string>
     <string name="gyro_mouse_sensitivity_title">Gyroscope sensitivity</string>

@@ -33,7 +33,7 @@ itself refuses GNOME < 46 and tells the phone. `install.sh` first upgrades the Z
 ## Installing on a new PC from the phone
 
 Opening *Remote input* on a computer that has not announced `rawTouch` shows a chooser: **Install drivers**
-or **Use legacy input** (remembered; the toolbar menu has *Install touchpad drivers* to run it later).
+or **Use legacy input** (remembered; the toolbar menu has *Touchpad drivers* to run it later).
 "Install drivers" makes the app press Ctrl+Alt+T on the computer and type
 
     bash <(curl -fsSL https://raw.githubusercontent.com/Sandstorrm/zorin-connect-android/master/desktop/update-from-github.sh)
@@ -50,8 +50,22 @@ uinput state) to the phone that started it. The app types `ZC_PHONE_ID=<phone id
 Run command path gets the id from the daemon. The file arrives in the phone's Downloads / received files, and can be
 pulled with `adb pull /sdcard/Download/touchpad-install-failure-*.log`.
 
-The Run command button (`register-run-command.sh`, run by the script above) is for later updates; it uses
-`sudo -n`, or a graphical `pkexec` prompt if sudo needs a password.
+The Run command buttons (`register-run-command.sh`, run by the script above) are for later updates and for
+removal; they use `sudo -n`, or a graphical `pkexec` prompt if sudo needs a password.
+
+GNOME can switch every touchpad off (`org.gnome.desktop.peripherals.touchpad send-events 'disabled'`), which also
+silences the phone's virtual touchpad. If the script finds it disabled it sets it to `enabled` and remembers the old
+value in `~/.local/state/zorin-connect-touchpad/send-events-before` so the uninstall can put it back.
+
+## Uninstall
+
+The toolbar menu of *Remote input* has **Remove touchpad drivers**. It makes the app type
+`bash <(curl -fsSL .../desktop/uninstall.sh)` into a terminal on the computer. There is also a *Remove touchpad
+support* Run command button, or run `bash desktop/uninstall.sh` as your normal user (it asks for sudo). It restores
+the original `mousepad.js`, removes the helper, `touchpad.js`, the udev rule, the apt hook, the staged files, the
+Run command buttons, the launchers, the cache and the saved GNOME setting, removes the packages the installer added
+(recorded in `/var/lib/zorin-connect-touchpad/packages`) and restarts the daemon. Zorin Connect package upgrades are
+not undone.
 
 ## Test without a phone
 

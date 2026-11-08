@@ -123,6 +123,18 @@ case $? in
     *) fail "the installer failed or was cancelled" ;;
 esac
 
+# GNOME can switch all touchpads off (Settings > Mouse & Touchpad); that also silences the phone's
+# virtual touchpad. Turn it back on, and remember the old value so uninstall.sh can restore it.
+if command -v gsettings >/dev/null; then
+    TP_SCHEMA=org.gnome.desktop.peripherals.touchpad
+    if [ "$(gsettings get $TP_SCHEMA send-events 2>/dev/null)" = "'disabled'" ]; then
+        STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zorin-connect-touchpad"
+        mkdir -p "$STATE_DIR" && echo disabled > "$STATE_DIR/send-events-before"
+        gsettings set $TP_SCHEMA send-events enabled &&
+            echo "The touchpad was switched off in the GNOME settings, which also disables the phone touchpad. Switched it on."
+    fi
+fi
+
 # Add the Run Command button and the launcher to ~/.local/bin (as the normal user).
 bash "$SRC/desktop/register-run-command.sh" || echo "note: could not register the Run Command button"
 
