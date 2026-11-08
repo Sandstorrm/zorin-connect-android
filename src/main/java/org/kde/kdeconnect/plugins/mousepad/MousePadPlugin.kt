@@ -9,6 +9,9 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.view.KeyEvent
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.kde.kdeconnect.DeviceType
 import org.kde.kdeconnect.NetworkPacket
 import org.kde.kdeconnect.plugins.Plugin
@@ -21,8 +24,13 @@ class MousePadPlugin : Plugin() {
     var isKeyboardEnabled: Boolean = true
         private set
 
+    /** True when the computer announced it can replay raw touch frames as a real touchpad. */
+    var supportsRawTouch: Boolean = false
+        private set
+
     override fun onPacketReceived(np: NetworkPacket): Boolean {
         this.isKeyboardEnabled = np.getBoolean("state", true)
+        this.supportsRawTouch = np.getBoolean("rawTouch", false)
         return true
     }
 
@@ -125,6 +133,32 @@ class MousePadPlugin : Plugin() {
         np["scroll"] = true
         np["dx"] = dx
         np["dy"] = dy
+        sendPacket(np)
+    }
+
+    /**
+     * Sends the complete finger state of the touch surface (not individual down/up events),
+     * so the computer can replay it as a real multitouch touchpad and a lost packet can never
+     * leave a finger stuck. [fingers] holds [pointerId, xMm, yMm] triples; an empty list means
+     * every finger is up.
+     */
+    fun sendTouchFrame(seq: Long, timeMs: Long, widthMm: Double, heightMm: Double, fingers: List<Triple<Int, Double, Double>>) {
+        val points = JsonArray(
+            fingers.map { (id, x, y) ->
+                JsonArray(listOf(JsonPrimitive(id), JsonPrimitive(x), JsonPrimitive(y)))
+            }
+        )
+        val touch = JsonObject(
+            mapOf(
+                "seq" to JsonPrimitive(seq),
+                "t" to JsonPrimitive(timeMs),
+                "w" to JsonPrimitive(widthMm),
+                "h" to JsonPrimitive(heightMm),
+                "p" to points,
+            )
+        )
+        val np = NetworkPacket(PACKET_TYPE_MOUSEPAD_REQUEST)
+        np["touch"] = touch
         sendPacket(np)
     }
 

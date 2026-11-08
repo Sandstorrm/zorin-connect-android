@@ -86,9 +86,30 @@ SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted
 
     <SwitchPreference
         android:id="@+id/mousepad_mouse_buttons_enabled_pref"
-        android:defaultValue="true"
+        android:defaultValue="false"
         android:key="@string/mousepad_mouse_buttons_enabled_pref"
         android:title="@string/mousepad_mouse_buttons_title" />
+
+    <SwitchPreference
+        android:id="@+id/mousepad_hide_info_text_pref"
+        android:defaultValue="true"
+        android:key="@string/mousepad_hide_info_text_pref"
+        android:title="@string/mousepad_hide_info_text_title"
+        android:summary="@string/mousepad_hide_info_text_summary" />
+
+    <SwitchPreference
+        android:id="@+id/mousepad_fullscreen_landscape_pref"
+        android:defaultValue="true"
+        android:key="@string/mousepad_fullscreen_landscape_pref"
+        android:title="@string/mousepad_fullscreen_landscape_title"
+        android:summary="@string/mousepad_fullscreen_landscape_summary" />
+
+    <SwitchPreference
+        android:id="@+id/mousepad_raw_touch_pref"
+        android:defaultValue="true"
+        android:key="@string/mousepad_raw_touch_pref"
+        android:title="@string/mousepad_raw_touch_title"
+        android:summary="@string/mousepad_raw_touch_summary" />
 
     <SwitchPreference
         android:id="@+id/mousepad_double_tap_drag_enabled_pref"

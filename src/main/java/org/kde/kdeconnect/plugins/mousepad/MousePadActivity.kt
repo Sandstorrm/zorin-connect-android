@@ -11,7 +11,9 @@ import android.content.SharedPreferences
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
+import android.content.res.Configuration
 import android.hardware.SensorManager
+import android.os.Build
 import android.os.Bundle
 import android.view.GestureDetector
 import android.view.HapticFeedbackConstants
@@ -19,6 +21,8 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup.MarginLayoutParams
+import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -26,6 +30,8 @@ import androidx.core.content.getSystemService
 import androidx.core.view.OnApplyWindowInsetsListener
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.updateLayoutParams
 import androidx.preference.PreferenceManager
 import org.kde.kdeconnect.KdeConnect
 import org.kde.kdeconnect.base.BaseActivity
@@ -64,6 +70,12 @@ class MousePadActivity :
     private var accumulatedDistanceY: Double = 0.0
     private var pendingShowKeyboard: Boolean = false
     private var keyboardShown: Boolean = false
+    private var hideInfoText: Boolean = true
+    private var fullscreenLandscape: Boolean = true
+    private var isFullscreen: Boolean = false
+    private var rawTouchMode: Boolean = false
+    private var touchSeq: Long = 0L
+    private var touchActive: Boolean = false
 
     private lateinit var mDetector: GestureDetector
     private var mSensorManager: SensorManager? = null
@@ -167,19 +179,6 @@ class MousePadActivity :
         // Technically xdpi and ydpi should be handled separately,
         // but since ydpi is usually almost equal to xdpi, only xdpi is used for the multiplier.
         displayDpiMultiplier = StandardDpi / resources.displayMetrics.xdpi
-
-        val decorView = window.decorView
-        decorView.setOnSystemUiVisibilityChangeListener { visibility ->
-            if ((visibility and View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) {
-                var fullscreenType = 0
-
-                fullscreenType = fullscreenType or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                fullscreenType = fullscreenType or View.SYSTEM_UI_FLAG_FULLSCREEN
-                fullscreenType = fullscreenType or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-
-                window.decorView.systemUiVisibility = fullscreenType
-            }
-        }
     }
 
     override fun onResume() {
@@ -193,19 +192,22 @@ class MousePadActivity :
         }
 
         invalidateOptionsMenu()
+        if (useRawTouch()) sendEmptyTouchFrame()
 
         super.onResume()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus && pendingShowKeyboard) {
+        if (hasFocus) applyFullscreen()
+        if (hasFocus && pendingShowKeyboard && !isFullscreen) {
             showKeyboard()
             pendingShowKeyboard = false
         }
     }
 
     override fun onPause() {
+        releaseRawTouch()
         if (gyroEnabled) {
             mSensorManager?.unregisterListener(this)
             gyroEnabled = false
@@ -229,7 +231,7 @@ class MousePadActivity :
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_mousepad, menu)
 
-        val mouseButtonsEnabled = prefs.getBoolean(getString(R.string.mousepad_mouse_buttons_enabled_pref), true)
+        val mouseButtonsEnabled = prefs.getBoolean(getString(R.string.mousepad_mouse_buttons_enabled_pref), false)
 
         menu.findItem(R.id.menu_right_click).isVisible = !mouseButtonsEnabled
         menu.findItem(R.id.menu_middle_click).isVisible = !mouseButtonsEnabled
@@ -282,6 +284,10 @@ class MousePadActivity :
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (useRawTouch()) {
+            sendRawTouch(event)
+            return true
+        }
         if (mMousePadGestureDetector.onTouchEvent(event)) {
             return true
         }
@@ -606,6 +612,11 @@ class MousePadActivity :
         doubleTapAction = ClickType.fromString(doubleTapSetting)
         tripleTapAction = ClickType.fromString(tripleTapSetting)
 
+        hideInfoText = p.getBoolean(getString(R.string.mousepad_hide_info_text_pref), true)
+        fullscreenLandscape = p.getBoolean(getString(R.string.mousepad_fullscreen_landscape_pref), true)
+        rawTouchMode = p.getBoolean(getString(R.string.mousepad_raw_touch_pref), true)
+        if (!rawTouchMode) releaseRawTouch()
+
         when (sensitivitySetting) {
             "slowest" -> mCurrentSensitivity = 0.2f
             "aboveSlowest" -> mCurrentSensitivity = 0.5f
@@ -617,7 +628,9 @@ class MousePadActivity :
                 return
             }
         }
-        if (p.getBoolean("pref_mousepad_show_keyboard", true)) {
+        applyFullscreen()
+
+        if (!isFullscreen && p.getBoolean("pref_mousepad_show_keyboard", true)) {
             if (hasWindowFocus()) {
                 showKeyboard()
             } else {
@@ -625,10 +638,11 @@ class MousePadActivity :
                 pendingShowKeyboard = true
             }
         } else {
+            pendingShowKeyboard = false
             hideKeyboard()
         }
 
-        if (p.getBoolean(getString(R.string.mousepad_mouse_buttons_enabled_pref), true)) {
+        if (!isFullscreen && p.getBoolean(getString(R.string.mousepad_mouse_buttons_enabled_pref), false)) {
             binding.mouseButtons.visibility = View.VISIBLE
         } else {
             binding.mouseButtons.visibility = View.GONE
@@ -639,8 +653,102 @@ class MousePadActivity :
             if (doubleTapDragEnabled) R.string.mousepad_info_double_tap
             else R.string.mousepad_info
         )
+        binding.mousepadInfo.visibility = if (hideInfoText || isFullscreen) View.GONE else View.VISIBLE
 
         prefsApplied = true
+    }
+
+    /**
+     * In landscape (when enabled) the touchpad becomes a blank full screen surface:
+     * no toolbar, buttons or text, and the system bars are hidden (immersive).
+     */
+    private fun applyFullscreen() {
+        if (!::prefs.isInitialized) return
+        val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val fullscreen = landscape && fullscreenLandscape
+        val changed = fullscreen != isFullscreen
+        isFullscreen = fullscreen
+
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        if (fullscreen) {
+            supportActionBar?.hide()
+            binding.mouseButtons.visibility = View.GONE
+            binding.mousepadInfo.visibility = View.GONE
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                window.attributes = window.attributes.apply {
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            hideKeyboard()
+        } else {
+            supportActionBar?.show()
+            controller.show(WindowInsetsCompat.Type.systemBars())
+        }
+        if (changed) invalidateOptionsMenu()
+    }
+
+    override fun onWindowInsetsChanged(view: View, insets: WindowInsetsCompat) {
+        if (isFullscreen) {
+            // The touchpad fills the whole screen, including behind a display cutout.
+            view.updateLayoutParams<MarginLayoutParams> {
+                bottomMargin = 0
+                leftMargin = 0
+                rightMargin = 0
+            }
+        } else {
+            super.onWindowInsetsChanged(view, insets)
+        }
+    }
+
+    /** Raw mode needs a computer that announced support for it; otherwise use the classic gestures. */
+    private fun useRawTouch(): Boolean {
+        return rawTouchMode &&
+            KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId)?.supportsRawTouch == true
+    }
+
+    /** Forwards every finger's position in millimetres; the computer's touchpad driver does the rest. */
+    private fun sendRawTouch(event: MotionEvent) {
+        val plugin = KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId)
+        if (plugin == null) {
+            finish()
+            return
+        }
+        val metrics = resources.displayMetrics
+        val xMm = 25.4 / metrics.xdpi
+        val yMm = 25.4 / metrics.ydpi
+        val view = window.decorView
+
+        val fingers = ArrayList<Triple<Int, Double, Double>>(event.pointerCount)
+        val ended = event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL
+        if (!ended) {
+            val lifted = if (event.actionMasked == MotionEvent.ACTION_POINTER_UP) event.actionIndex else -1
+            for (i in 0 until event.pointerCount) {
+                if (i == lifted) continue
+                fingers.add(Triple(event.getPointerId(i), event.getX(i) * xMm, event.getY(i) * yMm))
+            }
+        }
+        touchActive = fingers.isNotEmpty()
+        plugin.sendTouchFrame(++touchSeq, event.eventTime, view.width * xMm, view.height * yMm, fingers)
+    }
+
+    /** Lifts every finger on the computer, so none stays stuck down when the touch stream stops. */
+    private fun releaseRawTouch() {
+        if (!touchActive) return
+        touchActive = false
+        sendEmptyTouchFrame()
+    }
+
+    /** An all-fingers-up frame; on open it also wakes the computer's touchpad helper before the first touch. */
+    private fun sendEmptyTouchFrame() {
+        val plugin = KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId) ?: return
+        val view = window.decorView
+        val metrics = resources.displayMetrics
+        plugin.sendTouchFrame(
+            ++touchSeq, android.os.SystemClock.uptimeMillis(),
+            view.width * 25.4 / metrics.xdpi, view.height * 25.4 / metrics.ydpi, emptyList(),
+        )
     }
 
     private fun isGyroSensorAvailable(): Boolean {

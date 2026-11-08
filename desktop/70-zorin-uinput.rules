@@ -1,0 +1,3 @@
+# Lets the logged-in desktop user create virtual input devices.
+# Used by the Zorin Connect touchpad helper (phone as a multitouch touchpad).
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
