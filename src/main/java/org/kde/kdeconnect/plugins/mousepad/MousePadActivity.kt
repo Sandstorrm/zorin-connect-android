@@ -733,7 +733,21 @@ class MousePadActivity :
         showDriverDialog()
     }
 
+    /**
+     * Zorin Connect 55.x (Zorin OS 17 and earlier, GNOME 43) still announces the photo plugin,
+     * which later versions dropped. Those versions are too old for the touchpad drivers.
+     */
+    private fun isLegacyComputer(): Boolean {
+        val info = KdeConnect.getInstance().getDevice(deviceId)?.deviceInfo ?: return false
+        return (info.incomingCapabilities.orEmpty() + info.outgoingCapabilities.orEmpty())
+            .any { it.startsWith("kdeconnect.photo") }
+    }
+
     private fun showDriverDialog() {
+        if (isLegacyComputer()) {
+            showUpdateDialog()
+            return
+        }
         driverDialogShown = true
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.mousepad_driver_dialog_title)
@@ -746,8 +760,31 @@ class MousePadActivity :
             .show()
     }
 
-    /** Opens a terminal on the computer (Ctrl+Alt+T) and types the install command into it. */
+    private fun showUpdateDialog() {
+        driverDialogShown = true
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mousepad_update_dialog_title)
+            .setMessage(R.string.mousepad_update_dialog_message)
+            .setPositiveButton(R.string.mousepad_update_button) { _, _ ->
+                typeInTerminalOnComputer(getString(R.string.mousepad_update_command), R.string.mousepad_update_opening)
+            }
+            .setNegativeButton(R.string.mousepad_driver_legacy) { _, _ ->
+                prefs.edit().putString(getString(R.string.mousepad_input_choice_pref), "legacy").apply()
+            }
+            .setOnDismissListener { driverDialogShown = false }
+            .show()
+    }
+
     private fun installDrivers() {
+        // The id lets the computer send its install log back to this phone if the install fails.
+        typeInTerminalOnComputer(
+            getString(R.string.mousepad_driver_install_command, DeviceHelper.getDeviceId(this)),
+            R.string.mousepad_driver_installing,
+        )
+    }
+
+    /** Opens a terminal on the computer (Ctrl+Alt+T) and types [command] into it, then presses Enter. */
+    private fun typeInTerminalOnComputer(command: String, toastText: Int) {
         val plugin = KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId)
         if (plugin == null) {
             finish()
@@ -757,10 +794,8 @@ class MousePadActivity :
             Toast.makeText(this, R.string.mousepad_keyboard_input_not_supported, Toast.LENGTH_LONG).show()
             return
         }
-        Toast.makeText(this, R.string.mousepad_driver_installing, Toast.LENGTH_LONG).show()
+        Toast.makeText(this, toastText, Toast.LENGTH_LONG).show()
         plugin.sendCtrlAlt("t")
-        // The id lets the computer send its install log back to this phone if the install fails.
-        val command = getString(R.string.mousepad_driver_install_command, DeviceHelper.getDeviceId(this))
         handler.postDelayed({
             val p = KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId) ?: return@postDelayed
             p.sendText(command)

@@ -54,6 +54,26 @@ send_log() {
         echo "Sent the log to your phone: $out"
 }
 
+# Zorin OS 17 and earlier (GNOME 43) have a Zorin Connect too old for the touchpad support.
+unsupported() {
+    local msg="The touchpad driver needs Zorin OS 18 (GNOME 46 or newer). This computer runs an older Zorin OS (GNOME ${GNOME_MAJOR:-?}). Update Zorin OS first, then try again."
+    echo
+    echo "UNSUPPORTED: $msg"
+    notify "Update Zorin OS first" "$msg"
+    if [ -n "$PHONE_ID" ] && command -v gdbus >/dev/null; then
+        gdbus call --session --dest org.gnome.Shell.Extensions.ZorinConnect \
+            --object-path "/org/gnome/Shell/Extensions/ZorinConnect/Device/${PHONE_ID//[^[:alnum:]_]/_}" \
+            --method org.gtk.Actions.Activate shareText "[<'$msg'>]" "{}" >/dev/null 2>&1
+    fi
+    if [ "$INTERACTIVE" = 1 ]; then
+        read -r -p "Open the Zorin OS upgrader now? [y/N] " answer </dev/tty
+        case "$answer" in
+            [yY]*) gtk-launch com.zorin.desktop.upgrader || zorin-os-upgrader ;;
+        esac
+    fi
+    exit 2
+}
+
 fail() {
     echo "FAILED: $1"
     notify "Touchpad install failed" "$1 (log: $LOG)"
@@ -77,6 +97,11 @@ fetch() {
     return 1
 }
 
+GNOME_MAJOR="${ZC_GNOME_MAJOR:-$(gnome-shell --version 2>/dev/null | grep -oE '[0-9]+' | head -1)}"
+if [ -n "$GNOME_MAJOR" ] && [ "$GNOME_MAJOR" -lt 46 ]; then
+    unsupported
+fi
+
 command -v curl >/dev/null || fail "curl is not installed"
 echo "Downloading $REPO ($BRANCH)..."
 fetch || fail "could not download $REPO"
@@ -91,7 +116,12 @@ elif [ "$INTERACTIVE" = 1 ]; then
     sudo bash "$SRC/desktop/install.sh"
 else
     pkexec bash "$SRC/desktop/install.sh"
-fi || fail "the installer failed or was cancelled"
+fi
+case $? in
+    0) ;;
+    2) unsupported ;;
+    *) fail "the installer failed or was cancelled" ;;
+esac
 
 # Add the Run Command button and the launcher to ~/.local/bin (as the normal user).
 bash "$SRC/desktop/register-run-command.sh" || echo "note: could not register the Run Command button"

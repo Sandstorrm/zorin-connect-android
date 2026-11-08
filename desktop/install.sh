@@ -1,15 +1,28 @@
 #!/bin/bash
 # Installs the phone-as-touchpad support for Zorin Connect. Run with sudo; safe to repeat.
+# Exit status: 0 ok, 2 Zorin Connect too old (Zorin OS 17 and earlier), 1 anything else.
 # The original mousepad.js is kept as mousepad.js.zc-orig. After a Zorin Connect package
 # update run this again, or install the optional hook with install-update-hook.sh.
-set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "run with sudo" >&2; exit 1; }
 SRC="$(cd "$(dirname "$0")" && pwd)"
-EXT=/usr/share/gnome-shell/extensions/zorin-connect@zorinos.com/service
+STATUS=0
 
-# an earlier version of this installer copied a whole patched mousepad.js: restore the original first
-[ -e "$EXT/plugins/mousepad.js.zc-orig" ] && cp -a "$EXT/plugins/mousepad.js.zc-orig" "$EXT/plugins/mousepad.js"
+# Update Zorin Connect itself first (newer versions fix compatibility problems).
+if command -v apt-get >/dev/null; then
+    apt-get update -qq || echo "note: apt-get update failed"
+    apt-get install -y -q --only-upgrade gnome-shell-extension-zorin-connect zorin-connect ||
+        echo "note: could not update Zorin Connect"
+fi
+
+# The helper needs python-evdev.
+python3 -c 'import evdev' 2>/dev/null || apt-get install -y -q python3-evdev || {
+    echo "FAILED: could not install python3-evdev"
+    STATUS=1
+}
+
 "$SRC/apply.sh"
+APPLY=$?
+[ $APPLY -ne 0 ] && STATUS=$APPLY
 
 rm -f /etc/udev/rules.d/99-zorin-uinput.rules
 # must sort before 73-seat-late.rules for the uaccess tag to take effect
@@ -20,4 +33,5 @@ udevadm trigger --name-match=uinput --action=change || true
 command -v libinput >/dev/null 2>&1 || apt-get install -y -q libinput-tools || true
 # keep the optional apt update hook current if it is installed
 [ -e /etc/apt/apt.conf.d/99zorin-connect-touchpad ] && "$SRC/install-update-hook.sh"
-echo "done. Restart the daemon: pkill -f zorin-connect@zorinos.com/service/daemon.js"
+[ $STATUS -eq 0 ] && echo "done. Restart the daemon: pkill -f zorin-connect@zorinos.com/service/daemon.js"
+exit $STATUS

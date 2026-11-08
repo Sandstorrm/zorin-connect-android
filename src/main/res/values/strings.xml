@@ -108,8 +108,13 @@ SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted
     <string name="mousepad_driver_dialog_title">Install touchpad drivers?</string>
     <string name="mousepad_driver_dialog_message">Raw touchpad mode lets your computer handle scrolling and gestures like a real touchpad, but it needs a small driver installed on the computer.\n\nBefore you install:\n• Make sure the computer is unlocked and showing the desktop.\n• Don\'t use the computer\'s keyboard while the command is typed.\n• The installer needs sudo: you may have to enter your sudo password in the terminal that opens. Type it on the computer\'s keyboard or with this phone\'s keyboard.\n\nZorin Connect will open a terminal on the computer and type the install command.</string>
     <string name="mousepad_driver_install">Install drivers</string>
+    <string name="mousepad_update_command" translatable="false">gtk-launch com.zorin.desktop.upgrader || zorin-os-upgrader</string>
+    <string name="mousepad_update_dialog_title">Update Zorin OS first</string>
+    <string name="mousepad_update_dialog_message">This computer runs an older Zorin OS (17 or earlier). Its Zorin Connect is too old for the touchpad drivers, which need Zorin OS 18.\n\nUpdate Zorin OS to use raw touchpad mode. It is a big upgrade that can take a while, so back up your files first and keep the computer plugged in.\n\n"Update Zorin OS for me" opens the Zorin OS upgrader on the computer: Zorin Connect opens a terminal there and starts it. The computer must be unlocked.\n\nOr keep using legacy input for now.</string>
+    <string name="mousepad_update_button">Update Zorin OS for me</string>
+    <string name="mousepad_update_opening">Opening the Zorin OS upgrader on the computer…</string>
     <string name="mousepad_driver_legacy">Use legacy input</string>
-    <string name="mousepad_driver_menu_title">Install touchpad drivers</string>
+    <string name="mousepad_driver_menu_title">Touchpad drivers</string>
     <string name="mousepad_driver_installing">Opening a terminal on the computer…</string>
     <string name="gyro_mouse_enabled_title">Enable gyroscope mouse</string>
     <string name="gyro_mouse_sensitivity_title">Gyroscope sensitivity</string>

@@ -8,7 +8,7 @@ SRC="$(cd "$(dirname "$0")" && pwd)"
 STAGE=/usr/local/share/zorin-connect-touchpad
 install -d "$STAGE"
 install -m 0755 "$SRC/zorin-touchpad-helper.py" "$SRC/apply.sh" "$STAGE/"
-install -m 0644 "$SRC/touchpad.js" "$SRC/mousepad.patch" "$STAGE/"
+install -m 0644 "$SRC/touchpad.js" "$SRC/patch_mousepad.py" "$STAGE/"
 cat > /etc/apt/apt.conf.d/99zorin-connect-touchpad <<'APT'
 DPkg::Post-Invoke { "[ -x /usr/local/share/zorin-connect-touchpad/apply.sh ] && /usr/local/share/zorin-connect-touchpad/apply.sh || true"; };
 APT

@@ -17,8 +17,18 @@ An empty `p` means every finger is up. The daemon announces support with `rawTou
     sudo bash desktop/install-update-hook.sh    # optional: re-apply after package updates
     pkill -f "[z]orin-connect@zorinos.com/service/daemon.js"
 
-`mousepad.patch` is the diff against the stock `mousepad.js` (`mousepad.js.orig`). If upstream changes that
-file so the patch no longer applies, `apply.sh` keeps the original and the app falls back to classic mode.
+`patch_mousepad.py` edits the stock `mousepad.js` by code anchors (not line numbers), so it applies to every
+Zorin Connect release for GNOME 46+ (tested on 58.2, 62.1, 66.1, 71, 72, 74, 74.1.1, 74.1.2). If an anchor is
+missing it leaves the original untouched (exit 1); `apply.sh` keeps the original and the app falls back to classic mode.
+
+## Supported systems
+
+Zorin OS 18 (GNOME 46+, Zorin Connect 58+). Zorin OS 17 and earlier ship Zorin Connect 55.x, which uses the old
+GJS `imports.` module system and cannot be patched; there the app shows "Update Zorin OS first" (it recognises the
+old version because 55.x still announces the `kdeconnect.photo` capability) with an **Update Zorin OS for me**
+button that opens the Zorin OS upgrader on the computer (`gtk-launch com.zorin.desktop.upgrader`), and the script
+itself refuses GNOME < 46 and tells the phone. `install.sh` first upgrades the Zorin Connect packages and installs
+`python3-evdev`; exit status 2 means "too old", 1 means any other failure (the log is sent to the phone).
 
 ## Installing on a new PC from the phone
 
