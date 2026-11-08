@@ -11,7 +11,11 @@ DIR="${XDG_CACHE_HOME:-$HOME/.cache}/zorin-connect-touchpad"
 SRC="$DIR/repo"
 LOG="$DIR/update.log"
 
+# The phone that started us (typed by the app, or set by the daemon for Run Command).
+PHONE_ID="${ZC_PHONE_ID:-$ZORIN_CONNECT_DEVICE_ID}"
+
 mkdir -p "$DIR"
+START_LINE="$(( $(wc -l < "$LOG" 2>/dev/null || echo 0) + 1 ))"
 if [ -t 1 ]; then
     INTERACTIVE=1
     exec > >(tee -a "$LOG") 2>&1
@@ -21,8 +25,41 @@ else
 fi
 echo "=== $(date) ==="
 
+diagnostics() {
+    echo "--- system"
+    grep -E '^(PRETTY_NAME|VERSION)=' /etc/os-release
+    echo "kernel: $(uname -r)  session: ${XDG_SESSION_TYPE:-?}  user: $USER"
+    echo "gnome-shell: $(gnome-shell --version 2>&1 | head -1)"
+    echo "zorin-connect: $(dpkg-query -W -f='${Version}' gnome-shell-extension-zorin-connect 2>&1 | head -1)"
+    echo "curl: $(command -v curl || echo missing)  tar: $(command -v tar || echo missing)  python3: $(python3 --version 2>&1)"
+    python3 -c 'import evdev; print("python3-evdev: ok")' 2>&1 | tail -1
+    echo "uinput: $(ls -l /dev/uinput 2>&1)"
+    echo "sudo -n: $(sudo -n true 2>&1 && echo ok)  phone id: ${PHONE_ID:-none}"
+    echo "---"
+}
+diagnostics
+
 notify() { notify-send -a "Zorin Connect" -i input-touchpad "$1" "$2" 2>/dev/null || true; }
-fail() { echo "FAILED: $1"; notify "Touchpad install failed" "$1 (log: $LOG)"; exit 1; }
+
+# Send this run's log to the phone (it lands in the app's received files / Downloads).
+send_log() {
+    [ -n "$PHONE_ID" ] || return 0
+    command -v gdbus >/dev/null || return 0
+    sleep 0.5   # let tee flush
+    local out="$DIR/touchpad-install-failure-$(hostname)-$(date +%H%M%S).log"
+    tail -n +"$START_LINE" "$LOG" > "$out"
+    gdbus call --session --dest org.gnome.Shell.Extensions.ZorinConnect \
+        --object-path "/org/gnome/Shell/Extensions/ZorinConnect/Device/${PHONE_ID//[^[:alnum:]_]/_}" \
+        --method org.gtk.Actions.Activate shareFile "[<('$out', false)>]" "{}" >/dev/null 2>&1 &&
+        echo "Sent the log to your phone: $out"
+}
+
+fail() {
+    echo "FAILED: $1"
+    notify "Touchpad install failed" "$1 (log: $LOG)"
+    send_log
+    exit 1
+}
 
 fetch() {
     local tmp

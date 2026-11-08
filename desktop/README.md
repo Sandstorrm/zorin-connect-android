@@ -35,6 +35,11 @@ installs `~/.local/bin/zorin-touchpad-update` and restarts the daemon so the pho
 `ZC_TOUCHPAD_REPO` (owner/name) and `ZC_TOUCHPAD_BRANCH` override the source. Log:
 `~/.cache/zorin-connect-touchpad/update.log`. It runs repo code as root: only use a repo you control.
 
+If the install fails, the script sends its log (with a short system summary: OS, GNOME and Zorin Connect versions,
+uinput state) to the phone that started it. The app types `ZC_PHONE_ID=<phone id>` in front of the command, and the
+Run command path gets the id from the daemon. The file arrives in the phone's Downloads / received files, and can be
+pulled with `adb pull /sdcard/Download/touchpad-install-failure-*.log`.
+
 The Run command button (`register-run-command.sh`, run by the script above) is for later updates; it uses
 `sudo -n`, or a graphical `pkexec` prompt if sudo needs a password.
 

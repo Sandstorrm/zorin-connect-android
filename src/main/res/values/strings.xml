@@ -104,7 +104,7 @@ SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted
     <string name="mousepad_raw_touch_summary">Send raw finger positions so the computer handles scrolling, taps and gestures like a real touchpad. Used only when the computer supports it</string>
     <string name="mousepad_raw_touch_pref" translatable="false">mousepad_raw_touch</string>
     <string name="mousepad_input_choice_pref" translatable="false">mousepad_input_choice</string>
-    <string name="mousepad_driver_install_command" translatable="false">bash &lt;(curl -fsSL https://raw.githubusercontent.com/Sandstorrm/zorin-connect-android/master/desktop/update-from-github.sh)</string>
+    <string name="mousepad_driver_install_command" translatable="false">ZC_PHONE_ID=%1$s bash &lt;(curl -fsSL https://raw.githubusercontent.com/Sandstorrm/zorin-connect-android/master/desktop/update-from-github.sh)</string>
     <string name="mousepad_driver_dialog_title">Install touchpad drivers?</string>
     <string name="mousepad_driver_dialog_message">Raw touchpad mode lets your computer handle scrolling and gestures like a real touchpad, but it needs a small driver installed on the computer.\n\nBefore you install:\n• Make sure the computer is unlocked and showing the desktop.\n• Don\'t use the computer\'s keyboard while the command is typed.\n• The installer needs sudo: you may have to enter your sudo password in the terminal that opens. Type it on the computer\'s keyboard or with this phone\'s keyboard.\n\nZorin Connect will open a terminal on the computer and type the install command.</string>
     <string name="mousepad_driver_install">Install drivers</string>

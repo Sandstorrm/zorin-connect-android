@@ -38,6 +38,7 @@ import androidx.preference.PreferenceManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.kde.kdeconnect.KdeConnect
 import org.kde.kdeconnect.base.BaseActivity
+import org.kde.kdeconnect.helpers.DeviceHelper
 import org.kde.kdeconnect.ui.PluginSettingsActivity
 import com.zorinos.zorin_connect.R
 import com.zorinos.zorin_connect.databinding.ActivityMousepadBinding
@@ -758,7 +759,8 @@ class MousePadActivity :
         }
         Toast.makeText(this, R.string.mousepad_driver_installing, Toast.LENGTH_LONG).show()
         plugin.sendCtrlAlt("t")
-        val command = getString(R.string.mousepad_driver_install_command)
+        // The id lets the computer send its install log back to this phone if the install fails.
+        val command = getString(R.string.mousepad_driver_install_command, DeviceHelper.getDeviceId(this))
         handler.postDelayed({
             val p = KdeConnect.getInstance().getDevicePlugin<MousePadPlugin>(deviceId) ?: return@postDelayed
             p.sendText(command)
